@@ -1,6 +1,8 @@
 
 # AI Face Emotion Recognition 🎭
 
+![result-1773258444859](https://github.com/user-attachments/assets/60e1d19c-cf60-44c9-b904-4f69e2b7e61d)
+
 > **Olympiad Project — Darya Stukalova**
 
 ![PyTorch](https://img.shields.io/badge/PyTorch-2.1.0+-red?logo=pytorch)
