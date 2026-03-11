@@ -1,7 +1,7 @@
 <div align="center">
 # AI Face Emotion Recognition 🎭
     
-> **Olympiad Project — Dana Stukalova**
+**Olympiad Project — Dana Stukalova**
 
 ![PyTorch](https://img.shields.io/badge/PyTorch-2.1.0+-red?logo=pytorch)
 ![Python](https://img.shields.io/badge/Python-3.11-blue?logo=python)
