@@ -3,7 +3,7 @@
 
 ![result-1773258444859](https://github.com/user-attachments/assets/60e1d19c-cf60-44c9-b904-4f69e2b7e61d)
 
-> **Olympiad Project — Darya Stukalova**
+> **Olympiad Project — Dana Stukalova**
 
 ![PyTorch](https://img.shields.io/badge/PyTorch-2.1.0+-red?logo=pytorch)
 ![Python](https://img.shields.io/badge/Python-3.11-blue?logo=python)
