@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.egg
+
+# Virtual environment
+.venv/
+venv/
+
+# Build / dist
+build/
+dist/
+*.spec
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Data (large, download separately)
+tools/downloads/
+tools/wheels/
+
+# Models (large binary, share separately)
+models/*.pt
+!models/.gitkeep
+
+# Temporary files
+*.tmp
+_strip_comments.py
+
+# Local-only olympiad materials (keep on disk, don't push to GitHub)
+GUIDE_OLYMPIAD.md
+PRESENTATION.html
+PRESENTATION.md
+REPORT_TASK1_EMOTIONS.md
+
+# OS
+Thumbs.db
+.DS_Store
