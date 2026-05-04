@@ -5,7 +5,7 @@ Supports loading from folder structure: train/<class_name>/*.jpg
 import os
 import torch
 from PIL import Image
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset, DataLoader, WeightedRandomSampler
 from torchvision import transforms
 
 EMOTION_CLASSES = ['angry', 'disgust', 'fear', 'happy', 'neutral', 'sad', 'surprise']
@@ -81,7 +81,19 @@ def get_dataloaders(train_dir, test_dir, batch_size=64, img_size=48, num_workers
     test_ds = FER2013FolderDataset(test_dir, transform=get_test_transforms(img_size))
 
     use_pin = torch.cuda.is_available()
-    train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True,
+    class_counts = torch.bincount(
+        torch.tensor([label for _, label in train_ds.samples], dtype=torch.long),
+        minlength=NUM_CLASSES,
+    ).float()
+    class_counts[class_counts == 0] = 1.0
+    sample_weights = [1.0 / class_counts[label].item() for _, label in train_ds.samples]
+    train_sampler = WeightedRandomSampler(
+        weights=torch.tensor(sample_weights, dtype=torch.double),
+        num_samples=len(train_ds.samples),
+        replacement=True,
+    )
+
+    train_loader = DataLoader(train_ds, batch_size=batch_size, sampler=train_sampler,
                               num_workers=num_workers, pin_memory=use_pin)
     test_loader = DataLoader(test_ds, batch_size=batch_size, shuffle=False,
                              num_workers=num_workers, pin_memory=use_pin)

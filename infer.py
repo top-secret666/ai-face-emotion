@@ -97,11 +97,61 @@ def predict_emotion(model, face_img, transform, device):
 def draw_result(frame, x, y, w, h, label, conf):
     color = EMOTION_COLORS.get(label, (255, 255, 255))
     ru_label = EMOTION_RU.get(label, label)
+    # Рисуем рамку вокруг лица
     cv2.rectangle(frame, (x, y), (x + w, y + h), color, 2)
     text = f'{ru_label} {conf:.0%}'
-    (tw, th), _ = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 0.7, 2)
-    cv2.rectangle(frame, (x, y - th - 10), (x + tw, y), color, -1)
-    cv2.putText(frame, text, (x, y - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 2)
+
+    # Попытка корректно отрисовать кириллицу через PIL (TrueType).
+    # Если PIL не установлен или что-то пойдёт не так — откат на cv2.putText.
+    try:
+        from PIL import Image, ImageDraw, ImageFont
+
+        # Конвертация в PIL Image (RGB)
+        pil_img = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+        draw = ImageDraw.Draw(pil_img)
+
+        # Подбор шрифта: пробуем системные пути, затем дефолт
+        font = None
+        # размер шрифта примерно зависит от ширины лица
+        font_size = max(16, int(w * 0.12))
+        font_paths = [
+            os.path.join(os.environ.get('WINDIR', 'C:\\Windows'), 'Fonts', 'arial.ttf'),
+            '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
+            '/usr/share/fonts/truetype/freefont/FreeSans.ttf',
+        ]
+        for fp in font_paths:
+            try:
+                if fp and os.path.isfile(fp):
+                    font = ImageFont.truetype(fp, font_size)
+                    break
+            except Exception:
+                font = None
+        if font is None:
+            font = ImageFont.load_default()
+
+        # Размер текста
+        tw, th = draw.textsize(text, font=font)
+
+        # Цвет фона — преобразуем BGR -> RGB для PIL
+        bg_color = tuple(int(c) for c in color[::-1])
+
+        # Координаты фона (под текст). Ограничиваем верхнюю координату >=0
+        rect_x1 = x
+        rect_y1 = max(0, y - th - 10)
+        rect_x2 = x + tw + 6
+        rect_y2 = y
+        draw.rectangle([rect_x1, rect_y1, rect_x2, rect_y2], fill=bg_color)
+
+        # Рисуем текст чёрным
+        draw.text((x + 3, rect_y1 + 2), text, font=font, fill=(0, 0, 0))
+
+        # Записываем обратно в numpy array (BGR)
+        frame[:] = cv2.cvtColor(np.array(pil_img), cv2.COLOR_RGB2BGR)
+    except Exception:
+        # Откат: используем OpenCV (ascii-only шрифты)
+        (tw, th), _ = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 0.7, 2)
+        cv2.rectangle(frame, (x, y - th - 10), (x + tw, y), color, -1)
+        cv2.putText(frame, text, (x, y - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 2)
 
 
 def run_camera(model, device, transform, cascade, source=0):

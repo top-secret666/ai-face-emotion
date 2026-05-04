@@ -46,7 +46,7 @@ try:
                                   QFileDialog, QGroupBox, QStatusBar,
                                   QMessageBox, QDialog, QScrollArea, QTextEdit)
     from PyQt5.QtCore import Qt, QTimer
-    from PyQt5.QtGui import QImage, QPixmap, QFont
+    from PyQt5.QtGui import QImage, QPixmap, QFont, QPainter, QColor
 except ImportError:
     print('PyQt5 not installed. Run: pip install PyQt5')
     sys.exit(1)
@@ -101,6 +101,52 @@ EMOTION_COLORS = {
     'happy': (0, 255, 255), 'neutral': (200, 200, 200),
     'sad': (255, 0, 0), 'surprise': (0, 165, 255),
 }
+
+
+def _draw_text_cyrillic(frame, text, org, font_size=20, bg_color=None, text_color=(0, 0, 0)):
+    """Draw text on frame supporting Cyrillic via Qt painter.
+    org = (x, y) is the text baseline position, similar to cv2.putText.
+    Colors are passed in OpenCV BGR order.
+    """
+    x, y = org
+    try:
+        rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        height, width, channels = rgb.shape
+        qimg = QImage(rgb.data, width, height, channels * width, QImage.Format_RGB888).copy()
+
+        painter = QPainter(qimg)
+        font = QFont('Arial', font_size)
+        font.setStyleStrategy(QFont.PreferAntialias)
+        painter.setFont(font)
+        metrics = painter.fontMetrics()
+
+        text_width = metrics.horizontalAdvance(text)
+        text_height = metrics.height()
+        ascent = metrics.ascent()
+
+        if bg_color is not None:
+            bg_rgb = QColor(int(bg_color[2]), int(bg_color[1]), int(bg_color[0]))
+            rect_y = max(0, y - text_height - 6)
+            painter.fillRect(x, rect_y, text_width + 6, text_height + 4, bg_rgb)
+            text_x = x + 3
+            text_y = rect_y + ascent + 2
+        else:
+            text_x = x
+            text_y = max(ascent, y)
+
+        fg_rgb = QColor(int(text_color[2]), int(text_color[1]), int(text_color[0]))
+        painter.setPen(fg_rgb)
+        painter.drawText(text_x, text_y, text)
+        painter.end()
+
+        ptr = qimg.bits()
+        ptr.setsize(qimg.byteCount())
+        painted = np.frombuffer(ptr, np.uint8).reshape((height, width, channels))
+        frame[:] = cv2.cvtColor(painted, cv2.COLOR_RGB2BGR)
+    except Exception:
+        # fallback to OpenCV (ASCII-only)
+        scale = max(0.5, font_size / 30.0)
+        cv2.putText(frame, text, (x, y), cv2.FONT_HERSHEY_SIMPLEX, scale, text_color, 2)
 
 class ImageViewerDialog(QDialog):
     """Dialog to view large images with zoom controls and fit-to-window."""
@@ -371,8 +417,7 @@ class MainWindow(QMainWindow):
         self.lbl_fps.setText(f'FPS: {avg:.1f}')
 
         overlay_text = f'FPS: {avg:.1f}'
-        cv2.putText(frame, overlay_text, (10, 28),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
+        _draw_text_cyrillic(frame, overlay_text, (10, 30), font_size=18, bg_color=None, text_color=(0, 255, 0))
 
         self._display(frame, self.video_label)
 
@@ -394,14 +439,23 @@ class MainWindow(QMainWindow):
             idx = probs.argmax().item()
             label = EMOTION_CLASSES[idx]
             conf = probs[idx].item()
-            color = EMOTION_COLORS.get(label, (255, 255, 255))
-            cv2.rectangle(frame, (x, y), (x + w, y + h), color, 2)
             ru = EMOTION_RU.get(label, label)
+            # Всегда показываем название эмоции; процент выводим только при уверенности выше порога
             if conf >= self.conf_threshold:
+                color = EMOTION_COLORS.get(label, (255, 255, 255))
+                cv2.rectangle(frame, (x, y), (x + w, y + h), color, 2)
                 text = f'{ru} {conf:.0%}'
-                cv2.putText(frame, text, (x, y - 8), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
+                bg = color
+                text_color = (0, 0, 0)
             else:
+                color = EMOTION_COLORS.get(label, (255, 255, 255))
+                # muted border for low confidence
                 cv2.rectangle(frame, (x, y), (x + w, y + h), (128, 128, 128), 1)
+                text = ru
+                bg = (128, 128, 128)
+                text_color = (255, 255, 255)
+
+            _draw_text_cyrillic(frame, text, (x, y), font_size=max(14, int(w * 0.12)), bg_color=bg, text_color=text_color)
             if conf > best_conf:
                 best_label, best_conf = label, conf
         self.lbl_emotion.setText(f'Эмоция: {EMOTION_RU.get(best_label, best_label)}')

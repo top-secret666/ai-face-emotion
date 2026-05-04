@@ -16,6 +16,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from sklearn.metrics import f1_score
 from torchvision import models
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -171,26 +172,27 @@ def main():
                             lr=args.lr, weight_decay=1e-4)
     scheduler = optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=5, T_mult=2, eta_min=1e-6)
 
-    best_acc = 0.0
+    best_score = 0.0
     no_improve = 0
     history = []
     for epoch in range(1, args.epochs + 1):
         t0 = time.time()
         train_loss, train_acc = train_one_epoch(model, train_loader, criterion, optimizer, device)
-        val_loss, val_acc, _, _, _ = evaluate(model, test_loader, device)
+        val_loss, val_acc, y_true, y_pred, _ = evaluate(model, test_loader, device)
+        val_f1_macro = f1_score(y_true, y_pred, average='macro')
         scheduler.step()
         elapsed = time.time() - t0
         print(f"  Epoch {epoch}/{args.epochs}  "
               f"train_loss={train_loss:.4f} train_acc={train_acc:.4f}  "
-              f"val_loss={val_loss:.4f} val_acc={val_acc:.4f}  time={elapsed:.1f}s")
+              f"val_loss={val_loss:.4f} val_acc={val_acc:.4f} val_f1_macro={val_f1_macro:.4f}  time={elapsed:.1f}s")
         history.append({'epoch': epoch, 'train_loss': train_loss, 'train_acc': train_acc,
-                        'val_loss': val_loss, 'val_acc': val_acc})
-        if val_acc > best_acc:
-            best_acc = val_acc
+                        'val_loss': val_loss, 'val_acc': val_acc, 'val_f1_macro': val_f1_macro})
+        if val_f1_macro > best_score:
+            best_score = val_f1_macro
             no_improve = 0
             save_path = os.path.join(models_dir, args.save_name)
             torch.save(model.state_dict(), save_path)
-            print(f"  * Best model saved: {save_path} (acc={best_acc:.4f})")
+            print(f"  * Best model saved: {save_path} (f1_macro={best_score:.4f})")
         else:
             no_improve += 1
             if no_improve >= 8:
@@ -200,8 +202,9 @@ def main():
     best_path = os.path.join(models_dir, args.save_name)
     model.load_state_dict(torch.load(best_path, map_location=device))
     _, final_acc, y_true, y_pred, y_probs = evaluate(model, test_loader, device)
+    final_f1_macro = f1_score(y_true, y_pred, average='macro')
     compute_and_save_metrics(y_true, y_pred, y_probs, EMOTION_CLASSES, results_dir)
-    print(f"\n[train] Done. Best accuracy: {best_acc:.4f}  Results: {results_dir}/")
+    print(f"\n[train] Done. Best macro F1: {best_score:.4f}  Final accuracy: {final_acc:.4f}  Final macro F1: {final_f1_macro:.4f}  Results: {results_dir}/")
 
     with open(os.path.join(results_dir, 'training_history.json'), 'w') as f:
         json.dump(history, f, indent=2)
