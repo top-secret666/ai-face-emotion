@@ -1,15 +1,18 @@
-
+<div align="center">
 # AI Face Emotion Recognition 🎭
-
-> **Olympiad Project — Darya Stukalova**
+    
+**Olympiad Project — Dana Stukalova**
 
 ![PyTorch](https://img.shields.io/badge/PyTorch-2.1.0+-red?logo=pytorch)
 ![Python](https://img.shields.io/badge/Python-3.11-blue?logo=python)
 ![FER-2013](https://img.shields.io/badge/Dataset-FER--2013-yellow)
 ![License](https://img.shields.io/badge/License-MIT-green)
 
----
+![result-1773258444859](https://github.com/user-attachments/assets/60e1d19c-cf60-44c9-b904-4f69e2b7e61d)
 
+</div>
+
+---
 ## 🗺️ Project Map
 
 ```
